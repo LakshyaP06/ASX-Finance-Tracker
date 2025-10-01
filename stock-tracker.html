@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASX Stock Tracker - TradingView Data</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls input,
+        .controls button,
+        .controls select {
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .controls button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .controls button:hover {
+            background: #5568d3;
+        }
+
+        .controls button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .stat-card p {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #5568d3;
+        }
+
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.5;
+        }
+
+        th.sorted-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+
+        th.sorted-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .neutral {
+            color: #6c757d;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-high {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .error {
+            padding: 30px;
+            text-align: center;
+            color: #dc3545;
+        }
+
+        .note {
+            padding: 20px 30px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            margin: 0 30px 30px 30px;
+            border-radius: 5px;
+        }
+
+        .note h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        .note p {
+            color: #856404;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.9em;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 ASX Stock Tracker</h1>
+            <p>Compare Current Price vs. Forecast Target Price from TradingView</p>
+        </div>
+
+        <div class="note">
+            <h3>⚠️ Important Note</h3>
+            <p><strong>Demo Mode:</strong> This tracker shows sample data. To fetch real TradingView data, you would need to:</p>
+            <ul style="margin-top: 10px; margin-left: 20px;">
+                <li>Use a backend server to scrape TradingView (client-side scraping is blocked by CORS)</li>
+                <li>Use TradingView's official API (requires paid subscription)</li>
+                <li>Or manually input data from TradingView analyst ratings</li>
+            </ul>
+            <p style="margin-top: 10px;">The sample below demonstrates the functionality with realistic ASX stock data structure.</p>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="Search by ticker or company..." style="flex: 1; min-width: 250px;">
+            <select id="filterAnalysts">
+                <option value="0">All Analyst Counts</option>
+                <option value="5">5+ Analysts</option>
+                <option value="10">10+ Analysts</option>
+                <option value="15">15+ Analysts</option>
+            </select>
+            <select id="filterUpside">
+                <option value="0">All Upside %</option>
+                <option value="20">20%+ Upside</option>
+                <option value="50">50%+ Upside</option>
+                <option value="100">100%+ Upside</option>
+            </select>
+            <button id="refreshBtn" onclick="loadStockData()">🔄 Refresh Data</button>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <h3>Total Stocks</h3>
+                <p id="totalStocks">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Average Upside</h3>
+                <p id="avgUpside">0%</p>
+            </div>
+            <div class="stat-card">
+                <h3>Best Opportunity</h3>
+                <p id="bestStock">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Highest Analyst Coverage</h3>
+                <p id="mostAnalysts">-</p>
+            </div>
+        </div>
+
+        <div id="loadingArea"></div>
+        <div class="table-container">
+            <table id="stockTable">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-column="rank">#</th>
+                        <th class="sortable" data-column="ticker">Ticker</th>
+                        <th class="sortable" data-column="company">Company</th>
+                        <th class="sortable" data-column="currentPrice">Current Price</th>
+                        <th class="sortable" data-column="targetPrice">Target Price</th>
+                        <th class="sortable" data-column="upside">% Upside/Downside</th>
+                        <th class="sortable" data-column="analysts">Analyst Count</th>
+                        <th class="sortable" data-column="confidence">Confidence</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Sample stock data - In production, this would be fetched from a backend that scrapes TradingView
+        const sampleStocks = [
+            { ticker: 'LOT', company: 'Lotus Resources Limited', currentPrice: 0.21, targetPrice: 0.30, analysts: 8 },
+            { ticker: 'BHP', company: 'BHP Group Limited', currentPrice: 43.50, targetPrice: 52.00, analysts: 22 },
+            { ticker: 'CBA', company: 'Commonwealth Bank', currentPrice: 118.50, targetPrice: 125.00, analysts: 18 },
+            { ticker: 'CSL', company: 'CSL Limited', currentPrice: 285.00, targetPrice: 310.00, analysts: 15 },
+            { ticker: 'WBC', company: 'Westpac Banking Corp', currentPrice: 28.50, targetPrice: 32.00, analysts: 16 },
+            { ticker: 'NAB', company: 'National Australia Bank', currentPrice: 36.20, targetPrice: 40.50, analysts: 17 },
+            { ticker: 'ANZ', company: 'ANZ Banking Group', currentPrice: 29.80, targetPrice: 33.20, analysts: 16 },
+            { ticker: 'WES', company: 'Wesfarmers Limited', currentPrice: 68.50, targetPrice: 75.00, analysts: 14 },
+            { ticker: 'RIO', company: 'Rio Tinto Limited', currentPrice: 118.00, targetPrice: 135.00, analysts: 20 },
+            { ticker: 'WOW', company: 'Woolworths Group', currentPrice: 38.50, targetPrice: 42.00, analysts: 13 },
+            { ticker: 'FMG', company: 'Fortescue Metals Group', currentPrice: 18.50, targetPrice: 24.00, analysts: 19 },
+            { ticker: 'MQG', company: 'Macquarie Group', currentPrice: 215.00, targetPrice: 235.00, analysts: 12 },
+            { ticker: 'TLS', company: 'Telstra Group Limited', currentPrice: 4.15, targetPrice: 4.50, analysts: 15 },
+            { ticker: 'WDS', company: 'Woodside Energy Group', currentPrice: 28.00, targetPrice: 35.00, analysts: 18 },
+            { ticker: 'TCL', company: 'Transurban Group', currentPrice: 13.50, targetPrice: 15.20, analysts: 11 },
+            { ticker: 'GMG', company: 'Goodman Group', currentPrice: 32.80, targetPrice: 38.00, analysts: 14 },
+            { ticker: 'COL', company: 'Coles Group Limited', currentPrice: 18.50, targetPrice: 20.00, analysts: 12 },
+            { ticker: 'S32', company: 'South32 Limited', currentPrice: 3.45, targetPrice: 4.20, analysts: 16 },
+            { ticker: 'ALL', company: 'Aristocrat Leisure', currentPrice: 52.00, targetPrice: 58.00, analysts: 10 },
+            { ticker: 'REA', company: 'REA Group Limited', currentPrice: 195.00, targetPrice: 215.00, analysts: 9 },
+            { ticker: 'SHL', company: 'Sonic Healthcare', currentPrice: 28.50, targetPrice: 32.50, analysts: 11 },
+            { ticker: 'QBE', company: 'QBE Insurance Group', currentPrice: 16.80, targetPrice: 19.50, analysts: 13 },
+            { ticker: 'ASX', company: 'ASX Limited', currentPrice: 68.00, targetPrice: 72.00, analysts: 8 },
+            { ticker: 'MIN', company: 'Mineral Resources', currentPrice: 58.50, targetPrice: 75.00, analysts: 15 },
+            { ticker: 'NCM', company: 'Newcrest Mining', currentPrice: 22.00, targetPrice: 28.00, analysts: 17 }
+        ];
+
+        let currentData = [];
+        let sortColumn = 'upside';
+        let sortDirection = 'desc';
+
+        function calculateUpside(current, target) {
+            return ((target - current) / current * 100).toFixed(2);
+        }
+
+        function getConfidenceLevel(analysts) {
+            if (analysts >= 15) return { level: 'High', class: 'badge-high' };
+            if (analysts >= 8) return { level: 'Medium', class: 'badge-medium' };
+            return { level: 'Low', class: 'badge-low' };
+        }
+
+        function loadStockData() {
+            const loadingArea = document.getElementById('loadingArea');
+            loadingArea.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading stock data...</p>
+                </div>
+            `;
+
+            // Simulate API call delay
+            setTimeout(() => {
+                // Process the data
+                currentData = sampleStocks.map(stock => ({
+                    ...stock,
+                    upside: parseFloat(calculateUpside(stock.currentPrice, stock.targetPrice)),
+                    confidence: getConfidenceLevel(stock.analysts)
+                }));
+
+                loadingArea.innerHTML = '';
+                sortAndDisplayData();
+                updateStats();
+            }, 800);
+        }
+
+        function sortAndDisplayData() {
+            // Apply filters
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const minAnalysts = parseInt(document.getElementById('filterAnalysts').value);
+            const minUpside = parseFloat(document.getElementById('filterUpside').value);
+
+            let filteredData = currentData.filter(stock => {
+                const matchesSearch = stock.ticker.toLowerCase().includes(searchTerm) || 
+                                     stock.company.toLowerCase().includes(searchTerm);
+                const matchesAnalysts = stock.analysts >= minAnalysts;
+                const matchesUpside = stock.upside >= minUpside;
+                return matchesSearch && matchesAnalysts && matchesUpside;
+            });
+
+            // Sort data
+            filteredData.sort((a, b) => {
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+
+                if (sortColumn === 'confidence') {
+                    aVal = a.analysts;
+                    bVal = b.analysts;
+                }
+
+                if (sortDirection === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+
+            displayTable(filteredData);
+        }
+
+        function displayTable(data) {
+            const tbody = document.getElementById('stockTableBody');
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">No stocks found matching your criteria.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map((stock, index) => {
+                const upsideClass = stock.upside > 0 ? 'positive' : stock.upside < 0 ? 'negative' : 'neutral';
+                const upsideSymbol = stock.upside > 0 ? '+' : '';
+                
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><strong>${stock.ticker}</strong></td>
+                        <td>${stock.company}</td>
+                        <td>$${stock.currentPrice.toFixed(2)}</td>
+                        <td>$${stock.targetPrice.toFixed(2)}</td>
+                        <td class="${upsideClass}">${upsideSymbol}${stock.upside}%</td>
+                        <td><strong>${stock.analysts}</strong> analysts</td>
+                        <td><span class="badge ${stock.confidence.class}">${stock.confidence.level}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const totalStocks = currentData.length;
+            const avgUpside = (currentData.reduce((sum, stock) => sum + stock.upside, 0) / totalStocks).toFixed(2);
+            const bestStock = currentData.reduce((best, stock) => stock.upside > best.upside ? stock : best, currentData[0]);
+            const mostAnalysts = currentData.reduce((max, stock) => stock.analysts > max.analysts ? stock : max, currentData[0]);
+
+            document.getElementById('totalStocks').textContent = totalStocks;
+            document.getElementById('avgUpside').textContent = `${avgUpside}%`;
+            document.getElementById('bestStock').textContent = `${bestStock.ticker} (+${bestStock.upside}%)`;
+            document.getElementById('mostAnalysts').textContent = `${mostAnalysts.ticker} (${mostAnalysts.analysts})`;
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', sortAndDisplayData);
+        document.getElementById('filterAnalysts').addEventListener('change', sortAndDisplayData);
+        document.getElementById('filterUpside').addEventListener('change', sortAndDisplayData);
+
+        // Table sorting
+        document.querySelectorAll('th.sortable').forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.dataset.column;
+                
+                if (sortColumn === column) {
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortColumn = column;
+                    sortDirection = 'desc';
+                }
+
+                // Update header classes
+                document.querySelectorAll('th.sortable').forEach(h => {
+                    h.classList.remove('sorted-asc', 'sorted-desc');
+                });
+                header.classList.add(`sorted-${sortDirection}`);
+
+                sortAndDisplayData();
+            });
+        });
+
+        // Load data on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStockData();
+            // Set initial sort indicator
+            document.querySelector('th[data-column="upside"]').classList.add('sorted-desc');
+        });
+    </script>
+</body>
+</html>
